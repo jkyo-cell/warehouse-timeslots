@@ -1,109 +1,75 @@
-import React, { useState } from "react";
-import { format, addMinutes, isBefore, isEqual } from "date-fns";
+import { useState } from "react";
+import { bookings } from "./bookings";
+import { addMinutes, isBefore } from "date-fns";
 
-export default function WarehouseTimeslotApp() {
-  const [bookings, setBookings] = useState([]);
+const TIMESLOTS = [
+  "08:00", "08:30", "09:00", "09:30",
+  "10:00", "10:30", "11:00", "11:30",
+  "12:00", "12:30", "13:00", "13:30",
+  "14:00", "14:30", "15:00", "15:30",
+  "16:00"
+];
+
+export default function App() {
   const [company, setCompany] = useState("");
   const [reference, setReference] = useState("");
-  const [date, setDate] = useState("");
-  const [startTime, setStartTime] = useState("");
-  const [duration, setDuration] = useState(30);
+  const [slot, setSlot] = useState("");
 
-  const timesOverlap = (startA, endA, startB, endB) => {
-    return (isBefore(startA, endB) || isEqual(startA, endB)) &&
-           (isBefore(startB, endA) || isEqual(startB, endA));
-  };
+  function isSlotAvailable(startTime) {
+    const newStart = new Date(`2023-01-01T${startTime}:00`);
+    const newEnd = addMinutes(newStart, 30);
+    const bufferStart = addMinutes(newStart, -15);
+    const bufferEnd = addMinutes(newEnd, 15);
 
-  const handleBooking = () => {
-    if (!company || !reference || !date || !startTime) return;
+    return !bookings.some((b) => {
+      const bStart = new Date(`2023-01-01T${b.slot}:00`);
+      const bEnd = addMinutes(bStart, 30);
+      return !(isBefore(bufferEnd, bStart) || isBefore(bEnd, bufferStart));
+    });
+  }
 
-    const start = new Date(`${date}T${startTime}:00`);
-    const end = addMinutes(start, duration);
-    const gapEnd = addMinutes(start, -15);
-    const gapStart = addMinutes(end, 15);
+  function book() {
+    if (!company || !reference || !slot) return;
 
-    for (const b of bookings) {
-      const bStart = new Date(b.start);
-      const bEnd = new Date(b.end);
-
-      if (timesOverlap(gapEnd, gapStart, bStart, bEnd)) {
-        alert("Booking conflicts with an existing slot including the 15 min buffer.");
-        return;
-      }
+    if (!isSlotAvailable(slot)) {
+      alert("Timeslot not available.");
+      return;
     }
 
-    setBookings([...bookings, { company, reference, start, end }]);
-    setCompany("");
-    setReference("");
-  };
-
-  const sorted = [...bookings].sort((a, b) => new Date(a.start) - new Date(b.start));
+    bookings.push({ company, reference, slot });
+    alert("Booking submitted!");
+  }
 
   return (
-    <div className="p-6 space-y-6">
-      <h1 className="text-2xl font-bold">Warehouse Timeslot Booking</h1>
+    <div style={{ padding: 30 }}>
+      <h1>Warehouse Booking</h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border rounded-2xl shadow">
-        <div className="space-y-2">
-          <input
-            className="w-full p-2 border rounded-xl"
-            placeholder="Company Name"
-            value={company}
-            onChange={e => setCompany(e.target.value)}
-          />
-          <input
-            className="w-full p-2 border rounded-xl"
-            placeholder="Pickup Reference"
-            value={reference}
-            onChange={e => setReference(e.target.value)}
-          />
-          <input
-            type="date"
-            className="w-full p-2 border rounded-xl"
-            value={date}
-            onChange={e => setDate(e.target.value)}
-          />
-          <input
-            type="time"
-            className="w-full p-2 border rounded-xl"
-            value={startTime}
-            onChange={e => setStartTime(e.target.value)}
-          />
+      <input
+        placeholder="Company name"
+        value={company}
+        onChange={(e) => setCompany(e.target.value)}
+      />
 
-          <select
-            className="w-full p-2 border rounded-xl"
-            value={duration}
-            onChange={e => setDuration(Number(e.target.value))}
-          >
-            <option value={30}>30 minutes</option>
-            <option value={60}>1 hour</option>
-            <option value={90}>1 hour 30 minutes</option>
-          </select>
+      <br /><br />
 
-          <button
-            className="p-2 bg-blue-600 text-white rounded-xl shadow"
-            onClick={handleBooking}
-          >
-            Book Slot
-          </button>
-        </div>
+      <input
+        placeholder="Pickup reference"
+        value={reference}
+        onChange={(e) => setReference(e.target.value)}
+      />
 
-        <div>
-          <h2 className="text-xl font-semibold mb-2">Calendar View</h2>
-          <div className="space-y-2 max-h-96 overflow-y-auto">
-            {sorted.map((b, i) => (
-              <div key={i} className="p-3 border rounded-xl shadow-sm">
-                <div className="font-bold">{b.company}</div>
-                <div>Ref: {b.reference}</div>
-                <div>
-                  {format(new Date(b.start), "dd MMM yyyy HH:mm")} - {format(new Date(b.end), "HH:mm")}
-                </div>
-              </div>
-            ))}
-            {sorted.length === 0 && <div className="text-gray-500">No bookings yet.</div>}
-          </div>
-        </div>
-      </div>
+      <br /><br />
+
+      <select value={slot} onChange={(e) => setSlot(e.target.value)}>
+        <option>Choose a time</option>
+        {TIMESLOTS.map((t) => (
+          <option key={t} value={t}>{t}</option>
+        ))}
+      </select>
+
+      <br /><br />
+
+      <button onClick={book}>Book Timeslot</button>
     </div>
   );
 }
